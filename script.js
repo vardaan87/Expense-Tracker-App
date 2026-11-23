@@ -1,7 +1,9 @@
-let editedIndex = null;
+const url = "http://localhost:3000/expense/";
+
+let editId = null;
 
 const form = document.querySelector("form");
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const amount = form.amount.value;
@@ -14,22 +16,20 @@ form.addEventListener("submit", (event) => {
     category: category,
   };
 
-  let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
-  if (editedIndex === null) {
-    expenses.push(expense);
+  if (editId === null) {
+    await axios.post(`${url}add`, expense);
   } else {
-    expenses[editedIndex] = expense;
+    await axios.put(`${url}edit/${editId}`, expense);
+    editId = null;
   }
 
-  localStorage.setItem("expenses", JSON.stringify(expenses));
-
-  editedIndex = null;
+  const { data } = await axios.get(url);
 
   form.reset();
 
   document.querySelector("#add_expense").innerHTML = "Add Expense";
 
-  displayUser(expenses);
+  displayUser(data);
 });
 
 function displayUser(data) {
@@ -39,10 +39,9 @@ function displayUser(data) {
   const ul = document.createElement("ul");
   ul.className = "list-group list-group-numbered";
 
-  data.forEach((item, index) => {
+  data.forEach((item) => {
     const li = document.createElement("li");
-    li.innerHTML =
-      item.amount + " - " + item.description + " - " + item.category;
+    li.textContent = `${item.amount} - ${item.description} - ${item.category}`;
     li.className = "list-group-item h5 ";
 
     const delButton = document.createElement("button");
@@ -50,7 +49,7 @@ function displayUser(data) {
     delButton.className = "btn btn-danger ms-5";
 
     delButton.addEventListener("click", () => {
-      deleteExpense(index);
+      deleteExpense(item.id);
     });
 
     const editButton = document.createElement("button");
@@ -58,11 +57,10 @@ function displayUser(data) {
     editButton.className = "btn btn-secondary ms-5";
 
     editButton.addEventListener("click", () => {
-      editExpense(index);
+      editExpense(item.id);
     });
 
     li.appendChild(delButton);
-    li.appendChild(editButton);
     li.appendChild(editButton);
     ul.appendChild(li);
   });
@@ -70,27 +68,30 @@ function displayUser(data) {
   div.appendChild(ul);
 }
 
-function deleteExpense(index) {
-  const expenses = JSON.parse(localStorage.getItem("expenses")) || [];
-  expenses.splice(index, 1);
-  localStorage.setItem("expenses", JSON.stringify(expenses));
-  displayUser(expenses);
+async function deleteExpense(id) {
+  try {
+    await axios.delete(`${url}delete/${id}`);
+
+    const { data } = await axios.get(url);
+    displayUser(data);
+  } catch (error) {
+    console.log(error.response?.data?.message || error.message);
+  }
 }
 
-function editExpense(index) {
-  const expenses = JSON.parse(localStorage.getItem("expenses")) || [];
-  const expense = expenses[index];
+async function editExpense(id) {
+  const { data } = await axios.get(`${url}${id}`);
 
-  form.amount.value = expense.amount;
-  form.description.value = expense.description;
-  form.category.value = expense.category;
+  form.amount.value = data.amount;
+  form.description.value = data.description;
+  form.category.value = data.category;
 
-  editedIndex = index;
+  editId = id;
 
   document.querySelector("#add_expense").innerHTML = "Update Expense";
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  const expenses = JSON.parse(localStorage.getItem("expenses")) || [];
-  displayUser(expenses);
+window.addEventListener("DOMContentLoaded", async () => {
+  const { data } = await axios.get(url);
+  displayUser(data);
 });
